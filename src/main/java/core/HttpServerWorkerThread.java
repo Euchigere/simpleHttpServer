@@ -1,13 +1,15 @@
 package core;
 
 import serverUtil.HttpRequestParser;
+
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 /**
  * HttpServerWorkerThread class implements Runnable
@@ -15,7 +17,7 @@ import java.util.function.Supplier;
  */
 
 class HttpServerWorkerThread implements Runnable {
-    Socket socket;
+    private final Socket socket;
 
     public HttpServerWorkerThread(Socket socket) {
         this.socket = socket;
@@ -23,6 +25,7 @@ class HttpServerWorkerThread implements Runnable {
 
     @Override
     public void run() {
+        String relativePath = "src/main/resources/";
         try (InputStream clientRequest = socket.getInputStream();
              OutputStream clientResponse = socket.getOutputStream()) {
 
@@ -32,22 +35,34 @@ class HttpServerWorkerThread implements Runnable {
 
             String method = requestParser.getMethod();
             String path = requestParser.getPath();
-            String response;
 
-            // generate response based on method and path
+            // return no response if the method is not get
             if (!"get".equals(method)) {
-                response = getResponse("error");
-                clientResponse.write(response.getBytes());
-            } else if ("/".equals(path)) {
-                response = getResponse("index");
-                clientResponse.write(response.getBytes());
-            } else if ("/json".equals(path)) {
-                response = getResponse("json");
-                clientResponse.write(response.getBytes());
-            } else {
-                response = getResponse("error");
-                clientResponse.write(response.getBytes());
+                return;
             }
+
+            //construct relative path from specified path
+            relativePath += "/".equals(path) ? "index.html"
+                    : "/json".equals(path) ? "html.json" : path;
+
+            File file = new File(relativePath);
+
+            // construct response headers and content
+            String CRLF = "\r\n";
+            String statusLine = (!file.exists() || file.isDirectory() ? "HTTP/1.1 404 Not Found" : "HTTP/1.1 200 OK") + CRLF;
+            String serverDetails = "Server: Java HTTPServer" + CRLF;
+            String contentType = "content-type: " + contentTypeProbe.apply(file) + CRLF;
+            byte[] content = contentGenerator.apply(file);
+            String contentLength = "Content-Length: " + content.length + CRLF + CRLF;
+            String footer = CRLF + CRLF;
+
+            // write response to output stream
+            clientResponse.write(statusLine.getBytes());
+            clientResponse.write(serverDetails.getBytes());
+            clientResponse.write(contentType.getBytes());
+            clientResponse.write(contentLength.getBytes());
+            clientResponse.write(content);
+            clientResponse.write(footer.getBytes());
             clientResponse.flush();
 
         } catch (IOException e) {
@@ -63,50 +78,35 @@ class HttpServerWorkerThread implements Runnable {
         }
     }
 
-    // method to generate response
-    private String getResponse(String type) {
-        String relativePath = "src/main/resources/";
-
-        // function to supply content depending on specified path
-        Supplier<String> contentGenerator = () -> {
-            String _content = "";
-            switch (type) {
-                case "index":
-                    try {
-                        byte[] htmlFileBytes = Files.readAllBytes(Paths.get(relativePath + "index.html"));
-                        _content = new String(htmlFileBytes);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    break;
-                case "json":
-                    try {
-                        byte[] jsonFileBytes = Files.readAllBytes(Paths.get(relativePath + "html.json"));
-                        _content = new String(jsonFileBytes);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    break;
-                default:
-                    _content = "<b>Requested resource not found ....";
+    // generate content from the specified path
+    protected static Function<File, byte[]> contentGenerator = (path) -> {
+        byte[] _content = new byte[] {};
+        // use default content if path does not exist else load content
+        if (!path.exists() || path.isDirectory()) {
+            _content = "<b>Requested resource not found ....".getBytes();
+        } else {
+            try {
+                _content = Files.readAllBytes(Paths.get(path.getPath()));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            return _content;
-        };
+        }
+        return _content;
+    };
 
-        String CRLF = "\r\n";
-        String statusLine = ("error".equals(type) ? "HTTP/1.1 404 Not Found" : "HTTP/1.1 200 OK") + CRLF;
-        String serverDetails = "Server: Java HTTPServer" + CRLF;
-        String contentType = ("json".equals(type) ? "Content-Type: application/json" : "Content-Type: text/html") + CRLF;
-        String content = contentGenerator.get() + CRLF + CRLF;
-        String contentLength = "Content-Length: " + content.getBytes().length + CRLF + CRLF;
-
-        StringBuilder responseBuilder = new StringBuilder();
-        responseBuilder.append(statusLine)
-                .append(serverDetails)
-                .append(contentType)
-                .append(contentLength)
-                .append(content);
-
-        return responseBuilder.toString();
-    }
+    // probe content type using nio Files probeContentType method
+    protected static Function<File, String> contentTypeProbe = (path) -> {
+        String contentType;
+        if (!path.exists() || path.isDirectory()) {
+            contentType = "text/html";
+        } else {
+            try {
+                contentType = Files.probeContentType(Paths.get(path.getPath()));
+            } catch (IOException e) {
+                contentType = "text/html";
+                e.printStackTrace();
+            }
+        }
+        return contentType;
+    };
 }

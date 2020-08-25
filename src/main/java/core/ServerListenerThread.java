@@ -13,8 +13,10 @@ import java.util.concurrent.Executors;
 public class ServerListenerThread implements Runnable {
     public static ExecutorService executorService = Executors.newFixedThreadPool(10);
     private final ServerSocket serverSocket;
+    private int port;
 
     public ServerListenerThread(int port) throws IOException {
+        this.port = port;
         this.serverSocket = new ServerSocket(port);
     }
 
@@ -22,7 +24,7 @@ public class ServerListenerThread implements Runnable {
     // and submits to the executorService
     @Override
     public void run() {
-        System.out.println("server started\nWaiting for request on 'http://localhost:8080/'...");
+        System.out.println("server started\nWaiting for request on 'http://localhost:" + port + "/'...");
         while (serverSocket.isBound() && !serverSocket.isClosed()) {
             try {
                 Socket socket = serverSocket.accept();

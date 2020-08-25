@@ -9,7 +9,7 @@ import static core.ServerListenerThread.executorService;
 public class HttpServer {
     public static void main(String[] args) {
         // port to listen for request
-        int port = 8080;
+        int port = 5050;
 
         // create instance of ServerListenerThread class and submit to executor service
         try{

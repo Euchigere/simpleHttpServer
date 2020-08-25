@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -26,12 +27,12 @@ public class HttpRequestParser {
             BufferedReader reader = new BufferedReader(new InputStreamReader(httpRequestStream));
             String line;
             StringBuilder requestBuilder = new StringBuilder();
-            while(!(line = reader.readLine()).isBlank()) {
-                requestBuilder.append(line + "\r\n");
+            while((line = reader.readLine()) != null && !line.isEmpty()) {
+                requestBuilder.append(line + "\n");
             }
             String request = requestBuilder.toString();
 
-            String[] requestLines = request.split("\r\n");
+            String[] requestLines = request.split("\n");
             String[] requestLine = requestLines[0].split(" ");
 
             this.method = requestLine[0].toLowerCase();
