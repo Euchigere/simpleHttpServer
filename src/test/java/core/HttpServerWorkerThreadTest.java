@@ -59,7 +59,7 @@ class HttpServerWorkerThreadTest {
                 .build();
 
         HttpResponse<String> response;
-        File file = new File("src/main/resources/html.json");
+        File file = new File("src/main/resources/sample.json");
         String expectedContent = new String(HttpServerWorkerThread.contentGenerator.apply(file));
 
         try {

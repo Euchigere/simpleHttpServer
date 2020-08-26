@@ -43,7 +43,7 @@ class HttpServerWorkerThread implements Runnable {
 
             //construct relative path from specified path
             relativePath += "/".equals(path) ? "index.html"
-                    : "/json".equals(path) ? "html.json" : path;
+                    : "/json".equals(path) ? "sample.json" : path;
 
             File file = new File(relativePath);
 
